@@ -1,13 +1,18 @@
 <template>
   <div>
-    <p>Вам выдана {{ curCard }}</p>
+    <p>В руках игрока: {{ playerCards }}</p>
+    <p>В руках дилера: {{ dealerCards }}</p>
     <div @click="giveCard">
-      <p>Выдать карту</p>
+      <p>Выдать карту игроку</p>
+    </div>
+    <div @click="giveCard">
+      <p>Выдать карту дилеру</p>
     </div>
   </div>
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'Field',
   data () {
@@ -16,26 +21,15 @@ export default {
       curCard: null
     }
   },
+  computed: {
+    ...mapGetters({
+      playerCards: 'getPlayerCards'
+    })
+  },
   methods: {
-    giveCard () {
-      this.curCard = this.randomCard()
-    },
-    randomCard() {
-      if(Math.floor(Math.random() * 54) < 2) {
-        return 'Joker'
-      } else {
-        const suit = Math.floor(Math.random()*4)
-        const cardValue = Math.floor(Math.random()*13)
-        return [suit, cardValue]
-
-      }
-    }
+    ...mapActions({
+      giveCard: 'giveCard'
+    })
   }
-  // created () {
-  //   const fullDeck = []
-  //   for (let suit in 4) {
-  //     for (let val in )
-  //   }
-  // }
 }
 </script>
