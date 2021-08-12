@@ -5,22 +5,32 @@ Vue.use(Vuex)
 
 export default new Vuex.Store({
   state: {
-    gameStarted: false,
     //max - 8 or infinite
     decksAmount: 1,
     deck: null,
+    player: {
+      cards: [],
+      secondHand: [],
+      cardSum: 0,
+      cardSumSecond: 0,
+      stake: 0,
+      money: 0
+    },
+    dealer: {
+      cards: [],
+      cardSum: 0
+    },
     dealerCards: [],
     playerCards: [],
-    playerStakes: null,
     nextCard: null,
-    stake: 0,
-    playerMoney: 5000
+    curTurn: null
   },
   getters: {
     getPlayerCards: state => state.playerCards,
     getDealerCards: state => state.dealerCards,
     getStake: state => state.stake,
-    getPlayerMoney: state => state.playerMoney
+    getPlayerMoney: state => state.playerMoney,
+    getCurTurn: state => state.curTurn
   },
   mutations: {
     GIVE_PLAYER_CARD (state, payload) {
@@ -58,15 +68,34 @@ export default new Vuex.Store({
     },
     ASSIGN_MONEY (state, payload) {
       state.playerMoney = payload
+    },
+    SET_CUR_TURN (state, payload) {
+      state.curTurn = payload
     }
   },
   actions: {
     startGame({ dispatch, commit }) {
+      dispatch('clearBoth')
       commit('SET_DECKS_AMOUNT', 1)
+      commit('ASSIGN_MONEY', 5000)
+      commit('SET_CUR_TURN', 'stake')
       dispatch('populateDeck')
+
+      // commit('GIVE_PLAYER_CARD', { suite: 0, value: 0})
+      // commit('GIVE_PLAYER_CARD', { suite: 1, value: 0})
+    },
+    startRound({ commit, dispatch }) {
+      dispatch('clearBoth')
+      commit('SET_CUR_TURN', 'stake')
+    },
+    beginDispense({ dispatch, commit }) {
+      commit('SET_CUR_TURN', 'dispense')
+      dispatch('giveCardToPlayer')
+      dispatch('giveCardToPlayer')
+      dispatch('giveCardToDealer')
+      dispatch('giveCardToDealer')
     },
     giveCardToPlayer ({ dispatch, commit, state }) {
-      dispatch('populateDeck')
       dispatch('randomCard')
       commit('GIVE_PLAYER_CARD', state.nextCard)
     },
@@ -132,7 +161,41 @@ export default new Vuex.Store({
     },
     loseStake({ commit }) {
       commit('ASSIGN_STAKE', 0)
-    }
+    },
+    calculateSum({ commit, state }, payload) {
+      const cardSums = []
+      for(let card of arr) {
+        if (card.value === 0) {
+          cardSums.push('Ace')
+        } else if (card.value > 9) {
+          cardSums.push(10)
+        } else {
+          cardSums.push(card.value+1)
+        }
+      }
+      const aceAmount = cardSums.filter(card => card === 'Ace').length
+      if (aceAmount === 0) {
+        return cardSums.reduce((oldVal, newVal) => oldVal + newVal, 0)
+      } else if (aceAmount === 1) {
+        const acePos = cardSums.indexOf('Ace')
+        cardSums.splice(acePos, 1)
+        let endSum = cardSums.reduce((oldVal, newVal) => oldVal + newVal, 0)
+        if(endSum + 11 > 21) {
+          return endSum + 1
+        } else {
+          return endSum + 11
+        }
+      } else {
+        return cardSums.filter(val => val !== 'Ace')
+            .reduce((oldVal, newVal) => oldVal + newVal, 0) + aceAmount
+      }
+      // const acePos = cardSums.indexOf('Ace')
+      // if (acePos !== -1) {
+      //   cardSums.splice(acePos, 1)
+      //
+      // }
+      // return cardSums
+    },
   },
   modules: {
 
