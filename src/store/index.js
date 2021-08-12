@@ -8,6 +8,7 @@ export default new Vuex.Store({
     //max - 8 or infinite
     decksAmount: 1,
     deck: null,
+    message: null,
     player: {
       cards: [],
       secondHand: [],
@@ -26,24 +27,17 @@ export default new Vuex.Store({
     curTurn: null
   },
   getters: {
-    getPlayerCards: state => state.playerCards,
-    getDealerCards: state => state.dealerCards,
-    getStake: state => state.stake,
-    getPlayerMoney: state => state.playerMoney,
-    getCurTurn: state => state.curTurn
+    getPlayer: state => state.player,
+    getDealer: state => state.dealer,
+    getCurTurn: state => state.curTurn,
+    getMessage: state => state.message
   },
   mutations: {
     GIVE_PLAYER_CARD (state, payload) {
-      state.playerCards.push(payload)
+      state.player.cards.push(payload)
     },
     GIVE_DEALER_CARD (state, payload) {
-      state.dealerCards.push(payload)
-    },
-    CLEAR_CARDS_PLAYER (state) {
-      state.playerCards = []
-    },
-    CLEAR_CARDS_DEALER (state) {
-      state.dealerCards = []
+      state.dealer.cards.push(payload)
     },
     ASSIGN_NEXT_CARD (state, payload) {
       state.nextCard = payload
@@ -58,19 +52,25 @@ export default new Vuex.Store({
       state.deck.splice(payload, 1)
     },
     CLEAR_PLAYER (state) {
-      state.playerCards = []
+      state.player.cards = []
     },
     CLEAR_DEALER (state) {
-      state.dealerCards = []
+      state.dealer.cards = []
     },
     ASSIGN_STAKE (state, payload) {
-      state.stake = payload
+      state.player.stake = payload
     },
     ASSIGN_MONEY (state, payload) {
-      state.playerMoney = payload
+      state.player.money = payload
     },
     SET_CUR_TURN (state, payload) {
       state.curTurn = payload
+    },
+    SET_CARD_SUM (state, payload) {
+      state[payload.person].cardSum = payload.value
+    },
+    SET_MESSAGE (state, payload) {
+      state.message = payload
     }
   },
   actions: {
@@ -86,22 +86,86 @@ export default new Vuex.Store({
     },
     startRound({ commit, dispatch }) {
       dispatch('clearBoth')
+      commit('SET_MESSAGE', null)
       commit('SET_CUR_TURN', 'stake')
     },
     beginDispense({ dispatch, commit }) {
       commit('SET_CUR_TURN', 'dispense')
       dispatch('giveCardToPlayer')
       dispatch('giveCardToPlayer')
+      // commit('GIVE_PLAYER_CARD', { suite: 0, value: 0})
+      // commit('GIVE_PLAYER_CARD', { suite: 1, value: 9})
+      // commit('SET_CARD_SUM', { person: 'player', value: 21 })
+      // dispatch('giveCardToDealer')
       dispatch('giveCardToDealer')
-      dispatch('giveCardToDealer')
+      dispatch('playerTurn')
+    },
+    playerTurn({ commit, dispatch, state }) {
+      if (state.player.cardSum === 21) {
+        dispatch('dealerTurn')
+      } else {
+        commit('SET_CUR_TURN', 'player')
+      }
+    },
+    takeCard({ dispatch, state }) {
+      dispatch('giveCardToPlayer')
+      if(state.player.cardSum > 21) {
+        dispatch('loseStake')
+      }
+    },
+    dealerTurn({ commit, dispatch, state }) {
+      commit('SET_CUR_TURN', 'dealer')
+      //If player have Blackjack from the beginning
+      if (state.player.cardSum === 21 && state.player.cards.length === 2) {
+        //If dealer have possibility for Blackjack
+        if(state.dealer.cardSum === 10 || state.dealer.cardSum === 11) {
+          dispatch('giveCardToDealer')
+          //But if dealer didn't have a blackjack
+          if (state.dealer.cardSum !== 21) {
+            //Player won and dealer got no Blackjack
+            dispatch('win3to2')
+          } else {
+            //Both have blackjack
+            dispatch('winPush')
+          }
+        } else {
+          //Player won with Blackjack on hands,
+          // dealer didn't have even the possibility of Blackjack
+          dispatch('win3to2')
+        }
+      } else {
+        //Here goes everything that is not blackjack
+        while (state.dealer.cardSum < 17) {
+          dispatch('giveCardToDealer')
+        }
+        //Dealer lost
+        if(state.dealer.cardSum > 21) {
+          dispatch('win1to1')
+
+          //Push
+        } else if (state.dealer.cardSum === state.player.cardSum) {
+          dispatch('winPush')
+
+          //Player lost by having less sum
+        } else if (state.dealer.cardSum > state.player.cardSum) {
+          dispatch('loseStake')
+
+          //Player won by having more sum than the dealer
+        } else {
+          dispatch('win1to1')
+        }
+      }
+
     },
     giveCardToPlayer ({ dispatch, commit, state }) {
       dispatch('randomCard')
       commit('GIVE_PLAYER_CARD', state.nextCard)
+      dispatch('calculateSum', 'player')
     },
     giveCardToDealer ({ dispatch, commit, state }) {
       dispatch('randomCard')
       commit('GIVE_DEALER_CARD', state.nextCard)
+      dispatch('calculateSum', 'dealer')
     },
     populateDeck ({ commit, state }) {
       const decks = []
@@ -140,29 +204,45 @@ export default new Vuex.Store({
     clearBoth({ commit }) {
       commit('CLEAR_PLAYER')
       commit('CLEAR_DEALER')
+      commit('SET_CARD_SUM', { person: 'player', value: 0 })
+      commit('SET_CARD_SUM', { person: 'dealer', value: 0 })
     },
-    setStake({ commit, state }) {
-      const stake = 100
-      commit('ASSIGN_STAKE', stake)
-      const newPlayerMoney = state.playerMoney - stake
+    setStake({ commit, state }, payload) {
+      commit('ASSIGN_STAKE', parseInt(payload, 10))
+      const newPlayerMoney = state.player.money - parseInt(payload, 10)
       commit('ASSIGN_MONEY', newPlayerMoney)
     },
     win3to2({ commit, state }) {
-      const wonStake = state.stake * 2.5
-      const newPlayerMoney = state.playerMoney + wonStake
+      const wonStake = state.player.stake * 2.5
+      const newPlayerMoney = state.player.money + wonStake
       commit('ASSIGN_STAKE', 0)
       commit('ASSIGN_MONEY', newPlayerMoney)
+      commit('SET_MESSAGE', 'It\'s a black jack! You win 3 to 2')
+      commit('SET_CUR_TURN', 'end')
     },
     win1to1({ commit, state }) {
-      const wonStake = state.stake * 2
-      const newPlayerMoney = state.playerMoney + wonStake
+      const wonStake = state.player.stake * 2
+      const newPlayerMoney = state.player.money + wonStake
       commit('ASSIGN_STAKE', 0)
       commit('ASSIGN_MONEY', newPlayerMoney)
+      commit('SET_MESSAGE', 'You win 1 to 1')
+      commit('SET_CUR_TURN', 'end')
+    },
+    winPush({ commit, state }) {
+      const newPlayerMoney = state.player.money + state.player.stake
+      commit('ASSIGN_MONEY', newPlayerMoney)
+      commit('ASSIGN_STAKE', 0)
+      commit('SET_MESSAGE', 'It\'s a push! You keep your stake')
+      commit('SET_CUR_TURN', 'end')
     },
     loseStake({ commit }) {
       commit('ASSIGN_STAKE', 0)
+      commit('SET_MESSAGE', 'You lost')
+      commit('SET_CUR_TURN', 'end')
     },
     calculateSum({ commit, state }, payload) {
+      const arr = state[payload].cards
+      let endSum
       const cardSums = []
       for(let card of arr) {
         if (card.value === 0) {
@@ -175,20 +255,21 @@ export default new Vuex.Store({
       }
       const aceAmount = cardSums.filter(card => card === 'Ace').length
       if (aceAmount === 0) {
-        return cardSums.reduce((oldVal, newVal) => oldVal + newVal, 0)
+        endSum =  cardSums.reduce((oldVal, newVal) => oldVal + newVal, 0)
       } else if (aceAmount === 1) {
         const acePos = cardSums.indexOf('Ace')
         cardSums.splice(acePos, 1)
-        let endSum = cardSums.reduce((oldVal, newVal) => oldVal + newVal, 0)
-        if(endSum + 11 > 21) {
-          return endSum + 1
+        const prepSum = cardSums.reduce((oldVal, newVal) => oldVal + newVal, 0)
+        if(prepSum + 11 > 21) {
+          endSum = prepSum + 1
         } else {
-          return endSum + 11
+          endSum = prepSum + 11
         }
       } else {
-        return cardSums.filter(val => val !== 'Ace')
+        endSum = cardSums.filter(val => val !== 'Ace')
             .reduce((oldVal, newVal) => oldVal + newVal, 0) + aceAmount
       }
+      commit('SET_CARD_SUM', { person: payload, value: endSum})
       // const acePos = cardSums.indexOf('Ace')
       // if (acePos !== -1) {
       //   cardSums.splice(acePos, 1)
