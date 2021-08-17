@@ -1,4 +1,6 @@
-
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const game = {
     namespaced: true,
@@ -29,27 +31,40 @@ const game = {
             // commit('GIVE_PLAYER_CARD', { suite: 0, value: 0})
             // commit('GIVE_PLAYER_CARD', { suite: 1, value: 0})
         },
-        startRound({ commit, dispatch }) {
+        startRound({ commit, dispatch, rootState }) {
+            if(rootState.deck.deck.length < 15) {
+                dispatch('deck/clearDecks', null, { root: true })
+                dispatch('deck/populateDeck', null, { root: true })
+            }
             dispatch('persons/clearBoth', null, { root: true })
             commit('SET_MESSAGE', null)
             commit('SET_CUR_TURN', 'stake')
         },
         beginDispense({ dispatch, commit }) {
             commit('SET_CUR_TURN', 'dispense')
+
+            //Normal game
             dispatch('persons/giveCardToPlayer', null, { root: true })
-            dispatch('persons/giveCardToPlayer', null, { root: true })
+            sleep(1000).then(() => {dispatch('persons/giveCardToPlayer', null, { root: true })})
+            sleep(2000).then(() => {dispatch('persons/giveCardToDealer', null, { root: true })})
+
+
+            //BlackJack override. Comment normal game and uncomment this if you want to see the what happens on BlackJack
             // commit('persons/GIVE_PLAYER_CARD', { suite: 0, value: 0}, { root: true })
             // commit('persons/GIVE_PLAYER_CARD', { suite: 1, value: 9}, { root: true })
             // commit('persons/SET_CARD_SUM', { person: 'player', value: 21 }, { root: true })
-            dispatch('persons/giveCardToDealer', null, { root: true })
             // commit('persons/GIVE_DEALER_CARD', { suite: 1, value: 0}, { root: true })
             // commit('persons/SET_CARD_SUM', { person: 'dealer', value: 11 }, { root: true })
+
+
+
             dispatch('playerTurn')
         },
         playerTurn({ commit, dispatch, rootState }) {
             if (rootState.persons.player.cardSum === 21) {
                 dispatch('dealerTurn')
             } else {
+                sleep(3000).then(() => {dispatch('persons/giveCardToDealer', null, { root: true })})
                 commit('SET_CUR_TURN', 'player')
             }
         },
@@ -97,7 +112,7 @@ const game = {
         },
         playerBlackJack1to1({ commit }) {
             commit('SET_CUR_TURN', 'chooseBlackJack')
-            commit('SET_MESSAGE', 'У крупье есть шанс на Блэк Джек. Возьмите выигрыш 1 к 1 или продолжайте играть.')
+            commit('SET_MESSAGE', 'Dealer might have a BlackJack. Take your 1 to 1 win or continue the round.')
         },
         playerWantContinue({ dispatch }) {
             dispatch('persons/giveCardToDealer', null, { root: true })
@@ -108,29 +123,51 @@ const game = {
             const newPlayerMoney = rootState.persons.player.money + wonStake
             commit('persons/ASSIGN_STAKE', 0, { root: true })
             commit('persons/ASSIGN_MONEY', newPlayerMoney, { root: true })
+            commit('SET_CUR_TURN', 'between')
             commit('SET_MESSAGE', 'It\'s a black jack! You win 3 to 2')
-            commit('SET_CUR_TURN', 'end')
+            sleep(3000).then(() => {commit('SET_CUR_TURN', 'end')})
         },
         win1to1({ commit, rootState }) {
             const wonStake = rootState.persons.player.stake * 2
             const newPlayerMoney = rootState.persons.player.money + wonStake
             commit('persons/ASSIGN_STAKE', 0, { root: true })
             commit('persons/ASSIGN_MONEY', newPlayerMoney, { root: true })
+            commit('SET_CUR_TURN', 'between')
             commit('SET_MESSAGE', 'You win 1 to 1')
-            commit('SET_CUR_TURN', 'end')
+            sleep(3000).then(() => {commit('SET_CUR_TURN', 'end')})
         },
         winPush({ commit, rootState }) {
             const newPlayerMoney = rootState.persons.player.money + rootState.persons.player.stake
             commit('persons/ASSIGN_MONEY', newPlayerMoney, { root: true })
             commit('persons/ASSIGN_STAKE', 0, { root: true })
+            commit('SET_CUR_TURN', 'between')
             commit('SET_MESSAGE', 'It\'s a push! You keep your stake')
-            commit('SET_CUR_TURN', 'end')
+            sleep(3000).then(() => {commit('SET_CUR_TURN', 'end')})
         },
         loseStake({ commit }) {
             commit('persons/ASSIGN_STAKE', 0, { root: true })
-            commit('SET_MESSAGE', 'You lost')
-            commit('SET_CUR_TURN', 'end')
+            commit('SET_CUR_TURN', 'between')
+            commit('SET_MESSAGE', 'You lost!')
+            sleep(3000).then(() => {commit('SET_CUR_TURN', 'end')})
+
         },
+        createMessage({ commit }, payload) {
+            setTimeout(() => {
+                commit('SET_MESSAGE', null)
+            }, 5000)
+            commit('SET_MESSAGE', payload)
+        }
+        // createDelay(payload) {
+            // let delay
+            // if (payload) {
+            //     delay = payload
+            // } else {
+            //     delay = 1000
+            // }
+            // await setTimeout(() => {
+            //     return true
+            // }, delay)
+        // }
     }
 }
 

@@ -46,7 +46,7 @@ const persons = {
         takeCard({ dispatch, state }) {
             dispatch('giveCardToPlayer')
             if(state.player.cardSum > 21) {
-                dispatch('loseStake')
+                dispatch('game/loseStake', null, { root: true })
             }
         },
         giveCardToPlayer ({ dispatch, commit, rootState }) {

@@ -8,7 +8,7 @@ const deck = {
         nextCard: null
     },
     getters: {
-
+        getDeck: state => state.deck
     },
     mutations: {
         ASSIGN_NEXT_CARD (state, payload) {
@@ -42,6 +42,9 @@ const deck = {
             const cardNumber = Math.floor(Math.random()*state.deck.length)
             commit('ASSIGN_NEXT_CARD', state.deck[cardNumber])
             commit('DELETE_CARD_FROM_DECK', cardNumber)
+        },
+        clearDecks({ commit }) {
+          commit('POPULATE_DECK', [])
         },
         //Gives random card in case we play game with infinite decks
         infiniteDeckRandomCard({ commit }) {
